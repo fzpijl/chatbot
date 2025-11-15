@@ -48,20 +48,34 @@ type ChatHistoryMessage = {
  */
 abstract class FetchStreamChatProvider implements ChatProvider {
   protected history: ChatHistoryMessage[];
-  protected abstract readonly apiUrl: string;
+  protected abstract readonly apiPath: string;
   protected readonly model: string;
   private readonly apiKey: string;
+  private readonly providerName: 'openai' | 'deepseek';
 
-  constructor(model: string, apiKey: string) {
+  constructor(model: string, apiKey: string, providerName: 'openai' | 'deepseek') {
     this.model = model;
     this.apiKey = apiKey;
+    this.providerName = providerName;
     this.history = [{ role: 'system', content: SYSTEM_PROMPT }];
   }
   
+  protected getEndpoint(): string {
+    const pattern = localStorage.getItem('proxy_url_pattern');
+    const defaultBase = this.providerName === 'openai' ? 'https://api.openai.com' : 'https://api.deepseek.com';
+
+    if (!pattern) {
+        return defaultBase + this.apiPath;
+    }
+
+    const proxyBase = pattern.replace('{provider}', this.providerName);
+    return proxyBase.replace(/\/$/, '') + this.apiPath;
+  }
+
   async *sendMessageStream(message: string): AsyncGenerator<string, void, unknown> {
     this.history.push({ role: 'user', content: message });
 
-    const response = await fetch(this.apiUrl, {
+    const response = await fetch(this.getEndpoint(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -120,14 +134,20 @@ abstract class FetchStreamChatProvider implements ChatProvider {
  * Chat provider for OpenAI models.
  */
 class OpenAIChatProvider extends FetchStreamChatProvider {
-  protected readonly apiUrl = 'https://api.openai.com/v1/chat/completions';
+  protected readonly apiPath = '/v1/chat/completions';
+  constructor(model: string, apiKey: string) {
+    super(model, apiKey, 'openai');
+  }
 }
 
 /**
  * Chat provider for DeepSeek models.
  */
 class DeepSeekChatProvider extends FetchStreamChatProvider {
-  protected readonly apiUrl = 'https://api.deepseek.com/chat/completions';
+    protected readonly apiPath = '/chat/completions';
+    constructor(model: string, apiKey: string) {
+      super(model, apiKey, 'deepseek');
+    }
 }
 
 
