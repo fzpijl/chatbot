@@ -11,7 +11,7 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'initial-ai-message',
-      text: "Hello! I'm your friendly AI assistant. How can I help you today?",
+      text: "Hello! I'm your friendly AI assistant. How can I help you today? Feel free to ask me for lists, code, or formatted text!",
       sender: 'ai',
     },
   ]);
@@ -45,7 +45,7 @@ const App: React.FC = () => {
         chatRef.current = ai.chats.create({
           model: 'gemini-2.5-flash',
           config: {
-            systemInstruction: 'You are a helpful and creative AI assistant. Provide clear, concise, and friendly responses.',
+            systemInstruction: 'You are a helpful and creative AI assistant. Provide clear, concise, and friendly responses. Use Markdown for formatting, such as lists, bold text, and code blocks, to enhance readability.',
           },
         });
       }

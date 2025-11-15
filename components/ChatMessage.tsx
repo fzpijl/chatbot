@@ -1,5 +1,6 @@
 
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
 import type { Message } from '../types';
 
 interface ChatMessageProps {
@@ -33,7 +34,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
             : 'bg-gray-700 text-gray-200 rounded-bl-none'
         }`}
       >
-        <p className="text-sm break-words">{message.text}</p>
+        <div className="prose prose-sm prose-invert max-w-none text-sm break-words 
+                        [&_p]:my-2 first:[&_p]:mt-0 last:[&_p]:mb-0
+                        [&_ul]:list-disc [&_ul]:pl-5
+                        [&_ol]:list-decimal [&_ol]:pl-5
+                        [&_pre]:bg-gray-800 [&_pre]:p-2 [&_pre]:rounded-md
+                        [&_code]:text-sm [&_code]:font-mono
+                        [&_a]:text-indigo-400 [&_a]:underline">
+          <ReactMarkdown>{message.text}</ReactMarkdown>
+        </div>
       </div>
     </div>
   );
