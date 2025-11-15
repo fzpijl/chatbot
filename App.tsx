@@ -4,6 +4,7 @@ import Header from './components/Header';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import TypingIndicator from './components/TypingIndicator';
+import ApiKeyModal from './components/ApiKeyModal';
 import { createChatProvider, ChatProvider } from './services/chatProviders';
 
 const initialMessage: Message = {
@@ -25,6 +26,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [currentModelId, setCurrentModelId] = useState<string>(AVAILABLE_MODELS[0].id);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const chatProviderRef = useRef<ChatProvider | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -113,6 +115,7 @@ const App: React.FC = () => {
         models={AVAILABLE_MODELS}
         currentModel={currentModelId}
         onModelChange={handleModelChange}
+        onOpenSettings={() => setIsModalOpen(true)}
       />
       <main ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.map((msg) => (
@@ -124,6 +127,7 @@ const App: React.FC = () => {
       <div className="sticky bottom-0">
         <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
       </div>
+      <ApiKeyModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 };

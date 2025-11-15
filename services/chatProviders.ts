@@ -48,20 +48,17 @@ type ChatHistoryMessage = {
  */
 abstract class FetchStreamChatProvider implements ChatProvider {
   protected history: ChatHistoryMessage[];
-  protected abstract readonly apiKey: string | undefined;
   protected abstract readonly apiUrl: string;
   protected readonly model: string;
+  private readonly apiKey: string;
 
-  constructor(model: string) {
+  constructor(model: string, apiKey: string) {
     this.model = model;
+    this.apiKey = apiKey;
     this.history = [{ role: 'system', content: SYSTEM_PROMPT }];
   }
   
   async *sendMessageStream(message: string): AsyncGenerator<string, void, unknown> {
-    if (!this.apiKey) {
-      throw new Error(`API key for ${this.constructor.name.replace('ChatProvider', '')} is not set.`);
-    }
-
     this.history.push({ role: 'user', content: message });
 
     const response = await fetch(this.apiUrl, {
@@ -123,7 +120,6 @@ abstract class FetchStreamChatProvider implements ChatProvider {
  * Chat provider for OpenAI models.
  */
 class OpenAIChatProvider extends FetchStreamChatProvider {
-  protected readonly apiKey = process.env.OPENAI_API_KEY;
   protected readonly apiUrl = 'https://api.openai.com/v1/chat/completions';
 }
 
@@ -131,7 +127,6 @@ class OpenAIChatProvider extends FetchStreamChatProvider {
  * Chat provider for DeepSeek models.
  */
 class DeepSeekChatProvider extends FetchStreamChatProvider {
-  protected readonly apiKey = process.env.DEEPSEEK_API_KEY;
   protected readonly apiUrl = 'https://api.deepseek.com/chat/completions';
 }
 
@@ -164,10 +159,20 @@ export function createChatProvider(modelId: string, provider: 'google' | 'openai
   switch (provider) {
     case 'google':
       return new GeminiChatProvider(modelId);
-    case 'openai':
-        return new OpenAIChatProvider(modelId);
-    case 'deepseek':
-        return new DeepSeekChatProvider(modelId);
+    case 'openai': {
+        const apiKey = localStorage.getItem('openai_api_key');
+        if (!apiKey) {
+            throw new Error('OpenAI API key not found. Please set it in the settings menu (gear icon).');
+        }
+        return new OpenAIChatProvider(modelId, apiKey);
+    }
+    case 'deepseek': {
+        const apiKey = localStorage.getItem('deepseek_api_key');
+        if (!apiKey) {
+            throw new Error('DeepSeek API key not found. Please set it in the settings menu (gear icon).');
+        }
+        return new DeepSeekChatProvider(modelId, apiKey);
+    }
     case 'echobot':
       return new EchoBotProvider();
     default:
