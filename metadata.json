@@ -1,0 +1,5 @@
+{
+  "name": "AI Chatbot",
+  "description": "A sleek and responsive chatbot interface built with React and powered by the Gemini API. Engage in natural conversations with an advanced AI.",
+  "requestFramePermissions": []
+}
