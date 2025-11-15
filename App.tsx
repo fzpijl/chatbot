@@ -1,24 +1,32 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI, Chat } from '@google/genai';
 import type { Message } from './types';
 import Header from './components/Header';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import TypingIndicator from './components/TypingIndicator';
+import { createChatProvider, ChatProvider } from './services/chatProviders';
+
+const initialMessage: Message = {
+  id: 'initial-ai-message',
+  text: "Hello! I'm your AI assistant. Select a model from the dropdown and let's chat!",
+  sender: 'ai',
+};
+
+const AVAILABLE_MODELS = [
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'google' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'google' },
+  { id: 'gpt-4o', name: 'OpenAI GPT-4o', provider: 'openai' },
+  { id: 'deepseek-chat', name: 'DeepSeek Chat', provider: 'deepseek' },
+  { id: 'echo-bot', name: 'Echo Bot (Mock)', provider: 'echobot' },
+];
 
 const App: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'initial-ai-message',
-      text: "Hello! I'm your friendly AI assistant. How can I help you today? Feel free to ask me for lists, code, or formatted text!",
-      sender: 'ai',
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([initialMessage]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentModelId, setCurrentModelId] = useState<string>(AVAILABLE_MODELS[0].id);
 
-  const chatRef = useRef<Chat | null>(null);
+  const chatProviderRef = useRef<ChatProvider | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,6 +34,16 @@ const App: React.FC = () => {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages, isLoading]);
+
+  const handleModelChange = (newModelId: string) => {
+    if (newModelId !== currentModelId) {
+        setCurrentModelId(newModelId);
+        setMessages([initialMessage]);
+        chatProviderRef.current = null; // Reset the chat session
+        setError(null);
+        setIsLoading(false);
+    }
+  };
 
   const handleSendMessage = async (messageText: string) => {
     setIsLoading(true);
@@ -40,17 +58,15 @@ const App: React.FC = () => {
     setMessages((prevMessages) => [...prevMessages, userMessage]);
 
     try {
-      if (!chatRef.current) {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        chatRef.current = ai.chats.create({
-          model: 'gemini-2.5-flash',
-          config: {
-            systemInstruction: 'You are a helpful and creative AI assistant. Provide clear, concise, and friendly responses. Use Markdown for formatting, such as lists, bold text, and code blocks, to enhance readability.',
-          },
-        });
+      if (!chatProviderRef.current) {
+        const selectedModel = AVAILABLE_MODELS.find(m => m.id === currentModelId);
+        if (!selectedModel) {
+            throw new Error("Selected model not found.");
+        }
+        chatProviderRef.current = createChatProvider(selectedModel.id, selectedModel.provider);
       }
 
-      const stream = await chatRef.current.sendMessageStream({ message: messageText });
+      const stream = await chatProviderRef.current.sendMessageStream(messageText);
 
       let aiResponseText = '';
       const aiMessageId = `ai-${Date.now()}`;
@@ -61,8 +77,8 @@ const App: React.FC = () => {
         { id: aiMessageId, text: '', sender: 'ai' },
       ]);
 
-      for await (const chunk of stream) {
-        aiResponseText += chunk.text;
+      for await (const textChunk of stream) {
+        aiResponseText += textChunk;
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === aiMessageId ? { ...msg, text: aiResponseText } : msg
@@ -93,7 +109,11 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen max-w-3xl mx-auto bg-gray-900 text-white font-sans antialiased">
-      <Header />
+      <Header 
+        models={AVAILABLE_MODELS}
+        currentModel={currentModelId}
+        onModelChange={handleModelChange}
+      />
       <main ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.map((msg) => (
           <ChatMessage key={msg.id} message={msg} />
