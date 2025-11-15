@@ -41,7 +41,7 @@ const App: React.FC = () => {
 
     try {
       if (!chatRef.current) {
-        const ai = new GoogleGenAI(process.env.API_KEY || '');
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         chatRef.current = ai.chats.create({
           model: 'gemini-2.5-flash',
           config: {
