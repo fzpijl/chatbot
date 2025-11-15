@@ -76,7 +76,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose }) => {
                 placeholder="http://localhost:8080/{provider}"
                 />
                 <p className="text-xs text-gray-500 mt-2">
-                  A single endpoint for your local proxy server. The app will replace <code className="bg-gray-600 px-1 rounded">{'{provider}'}</code> with <code className="bg-gray-600 px-1 rounded">'openai'</code> or <code className="bg-gray-600 px-1 rounded">'deepseek'</code>.
+                  The app replaces <code className="bg-gray-600 px-1 rounded">{'{provider}'}</code> with <code className="bg-gray-600 px-1 rounded">'google'</code>, <code className="bg-gray-600 px-1 rounded">'openai'</code>, or <code className="bg-gray-600 px-1 rounded">'deepseek'</code>.
                 </p>
             </div>
           </div>

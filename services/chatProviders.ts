@@ -1,4 +1,3 @@
-import { GoogleGenAI, Chat } from '@google/genai';
 import type { Message } from '../types';
 
 /**
@@ -13,30 +12,94 @@ export interface ChatProvider {
 // Common system prompt for consistency
 const SYSTEM_PROMPT = 'You are a helpful and creative AI assistant. Provide clear, concise, and friendly responses. Use Markdown for formatting, such as lists, bold text, and code blocks, to enhance readability.';
 
+type GeminiChatHistoryMessage = {
+  role: 'user' | 'model';
+  parts: Array<{ text: string }>;
+};
+
 /**
- * An implementation of the ChatProvider for Google's Gemini models.
- * This provider is stateful, managed by the GoogleGenAI SDK.
+ * An implementation of the ChatProvider for Google's Gemini models using the fetch API.
+ * This provider is stateless and respects the proxy configuration.
  */
 class GeminiChatProvider implements ChatProvider {
-  private chat: Chat;
-
+  private history: GeminiChatHistoryMessage[];
+  private readonly model: string;
+  private readonly apiKey: string;
+  
   constructor(model: string) {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    this.chat = ai.chats.create({
-      model: model,
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-      },
-    });
+    // Per requirements, the Google API key must come from the environment.
+    if (!process.env.API_KEY) {
+      throw new Error("Google API key is not configured. This is a platform issue and cannot be set by the user.");
+    }
+    this.model = model;
+    this.apiKey = process.env.API_KEY;
+    // For the REST API, the system prompt is best formatted as the first turn in the conversation.
+    this.history = [
+      { role: 'user', parts: [{ text: `System instruction: ${SYSTEM_PROMPT}` }] },
+      { role: 'model', parts: [{ text: "Understood. I will follow these instructions and act as a helpful AI assistant." }] }
+    ];
   }
+  
+  private getEndpoint(): string {
+    const pattern = localStorage.getItem('proxy_url_pattern');
+    const modelEndpoint = `/v1beta/models/${this.model}:streamGenerateContent?key=${this.apiKey}`;
+    const defaultBase = 'https://generativelanguage.googleapis.com';
 
-  async *sendMessageStream(message: string): AsyncGenerator<string> {
-    const stream = await this.chat.sendMessageStream({ message });
-    for await (const chunk of stream) {
-      yield chunk.text;
+    if (!pattern) {
+        return defaultBase + modelEndpoint;
+    }
+    
+    const proxyBase = pattern.replace('{provider}', 'google');
+    return proxyBase.replace(/\/$/, '') + modelEndpoint;
+  }
+  
+  async *sendMessageStream(message: string): AsyncGenerator<string, void, unknown> {
+    this.history.push({ role: 'user', parts: [{ text: message }] });
+
+    const response = await fetch(this.getEndpoint(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: this.history }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json();
+      throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorBody?.error?.message || 'Unknown error'}`);
+    }
+
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let fullResponse = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.trim().length < 3) continue; // Ignore empty lines or brackets
+        let parsableLine = line.trim().replace(/^,/, '');
+        try {
+          const parsed = JSON.parse(parsableLine);
+          const content = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (content) {
+            fullResponse += content;
+            yield content;
+          }
+        } catch (e) {
+          console.error('Failed to parse Gemini stream chunk:', parsableLine);
+        }
+      }
+    }
+    
+    if (fullResponse) {
+      this.history.push({ role: 'model', parts: [{ text: fullResponse }] });
     }
   }
 }
+
 
 type ChatHistoryMessage = {
   role: 'user' | 'assistant' | 'system';
