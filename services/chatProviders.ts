@@ -1,3 +1,4 @@
+import { GoogleGenAI, Chat } from '@google/genai';
 import type { Message } from '../types';
 
 /**
@@ -12,90 +13,34 @@ export interface ChatProvider {
 // Common system prompt for consistency
 const SYSTEM_PROMPT = 'You are a helpful and creative AI assistant. Provide clear, concise, and friendly responses. Use Markdown for formatting, such as lists, bold text, and code blocks, to enhance readability.';
 
-type GeminiChatHistoryMessage = {
-  role: 'user' | 'model';
-  parts: Array<{ text: string }>;
-};
 
 /**
- * An implementation of the ChatProvider for Google's Gemini models using the fetch API.
- * This provider is stateless and respects the proxy configuration.
+ * An implementation of the ChatProvider for Google's Gemini models using the official SDK.
  */
 class GeminiChatProvider implements ChatProvider {
-  private history: GeminiChatHistoryMessage[];
-  private readonly model: string;
-  private readonly apiKey: string;
+  private chat: Chat;
   
   constructor(model: string) {
-    // Per requirements, the Google API key must come from the environment.
     if (!process.env.API_KEY) {
       throw new Error("Google API key is not configured. This is a platform issue and cannot be set by the user.");
     }
-    this.model = model;
-    this.apiKey = process.env.API_KEY;
-    // For the REST API, the system prompt is best formatted as the first turn in the conversation.
-    this.history = [
-      { role: 'user', parts: [{ text: `System instruction: ${SYSTEM_PROMPT}` }] },
-      { role: 'model', parts: [{ text: "Understood. I will follow these instructions and act as a helpful AI assistant." }] }
-    ];
-  }
-  
-  private getEndpoint(): string {
-    const pattern = localStorage.getItem('proxy_url_pattern');
-    const modelEndpoint = `/v1beta/models/${this.model}:streamGenerateContent?key=${this.apiKey}`;
-    const defaultBase = 'https://generativelanguage.googleapis.com';
-
-    if (!pattern) {
-        return defaultBase + modelEndpoint;
-    }
-    
-    const proxyBase = pattern.replace('{provider}', 'google');
-    return proxyBase.replace(/\/$/, '') + modelEndpoint;
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    this.chat = ai.chats.create({
+      model: model,
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+      },
+    });
   }
   
   async *sendMessageStream(message: string): AsyncGenerator<string, void, unknown> {
-    this.history.push({ role: 'user', parts: [{ text: message }] });
-
-    const response = await fetch(this.getEndpoint(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: this.history }),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.json();
-      throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorBody?.error?.message || 'Unknown error'}`);
-    }
-
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder();
-    let fullResponse = '';
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n');
-
-      for (const line of lines) {
-        if (line.trim().length < 3) continue; // Ignore empty lines or brackets
-        let parsableLine = line.trim().replace(/^,/, '');
-        try {
-          const parsed = JSON.parse(parsableLine);
-          const content = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (content) {
-            fullResponse += content;
-            yield content;
-          }
-        } catch (e) {
-          console.error('Failed to parse Gemini stream chunk:', parsableLine);
-        }
+    const stream = await this.chat.sendMessageStream({ message });
+    for await (const chunk of stream) {
+      // Ensure we only yield non-empty text parts
+      const text = chunk.text?.trim();
+      if (text) {
+        yield text;
       }
-    }
-    
-    if (fullResponse) {
-      this.history.push({ role: 'model', parts: [{ text: fullResponse }] });
     }
   }
 }
@@ -111,28 +56,19 @@ type ChatHistoryMessage = {
  */
 abstract class FetchStreamChatProvider implements ChatProvider {
   protected history: ChatHistoryMessage[];
+  protected abstract readonly baseUrl: string;
   protected abstract readonly apiPath: string;
   protected readonly model: string;
   private readonly apiKey: string;
-  private readonly providerName: 'openai' | 'deepseek';
-
-  constructor(model: string, apiKey: string, providerName: 'openai' | 'deepseek') {
+  
+  constructor(model: string, apiKey: string) {
     this.model = model;
     this.apiKey = apiKey;
-    this.providerName = providerName;
     this.history = [{ role: 'system', content: SYSTEM_PROMPT }];
   }
   
   protected getEndpoint(): string {
-    const pattern = localStorage.getItem('proxy_url_pattern');
-    const defaultBase = this.providerName === 'openai' ? 'https://api.openai.com' : 'https://api.deepseek.com';
-
-    if (!pattern) {
-        return defaultBase + this.apiPath;
-    }
-
-    const proxyBase = pattern.replace('{provider}', this.providerName);
-    return proxyBase.replace(/\/$/, '') + this.apiPath;
+    return this.baseUrl + this.apiPath;
   }
 
   async *sendMessageStream(message: string): AsyncGenerator<string, void, unknown> {
@@ -197,9 +133,10 @@ abstract class FetchStreamChatProvider implements ChatProvider {
  * Chat provider for OpenAI models.
  */
 class OpenAIChatProvider extends FetchStreamChatProvider {
+  protected readonly baseUrl = 'https://api.openai.com';
   protected readonly apiPath = '/v1/chat/completions';
   constructor(model: string, apiKey: string) {
-    super(model, apiKey, 'openai');
+    super(model, apiKey);
   }
 }
 
@@ -207,9 +144,10 @@ class OpenAIChatProvider extends FetchStreamChatProvider {
  * Chat provider for DeepSeek models.
  */
 class DeepSeekChatProvider extends FetchStreamChatProvider {
+    protected readonly baseUrl = 'https://api.deepseek.com';
     protected readonly apiPath = '/chat/completions';
     constructor(model: string, apiKey: string) {
-      super(model, apiKey, 'deepseek');
+      super(model, apiKey);
     }
 }
 
