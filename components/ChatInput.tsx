@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 
 interface ChatInputProps {
@@ -7,11 +6,15 @@ interface ChatInputProps {
 }
 
 const SendIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-    </svg>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-6 w-6"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
+    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+  </svg>
 );
-
 
 const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
   const [input, setInput] = useState('');
@@ -25,7 +28,10 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="p-4 bg-gray-800 border-t border-gray-700 flex items-center space-x-4">
+    <form
+      onSubmit={handleSubmit}
+      className="p-4 bg-gray-800 border-t border-gray-700 flex items-center space-x-4"
+    >
       <input
         type="text"
         value={input}
