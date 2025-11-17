@@ -47,12 +47,7 @@ const SettingsIcon = () => (
   </svg>
 );
 
-const Header: React.FC<HeaderProps> = ({
-  models,
-  currentModel,
-  onModelChange,
-  onOpenSettings,
-}) => {
+const Header: React.FC<HeaderProps> = ({ models, currentModel, onModelChange, onOpenSettings }) => {
   return (
     <header className="bg-gray-800 shadow-md p-4 flex items-center justify-between sticky top-0 z-10">
       <div className="flex items-center space-x-4">

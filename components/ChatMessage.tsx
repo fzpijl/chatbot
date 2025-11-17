@@ -33,9 +33,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   );
 
   return (
-    <div
-      className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
-    >
+    <div className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
       {isUser ? <UserAvatar /> : <AiAvatar />}
       <div
         className={`max-w-xs md:max-w-md lg:max-w-2xl px-4 py-3 rounded-lg shadow ${

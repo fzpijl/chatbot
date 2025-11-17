@@ -25,9 +25,7 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([initialMessage]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentModelId, setCurrentModelId] = useState<string>(
-    AVAILABLE_MODELS[0].id,
-  );
+  const [currentModelId, setCurrentModelId] = useState<string>(AVAILABLE_MODELS[0].id);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const chatProviderRef = useRef<ChatProvider | null>(null);
@@ -35,8 +33,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages, isLoading]);
 
@@ -64,36 +61,25 @@ const App: React.FC = () => {
 
     try {
       if (!chatProviderRef.current) {
-        const selectedModel = AVAILABLE_MODELS.find(
-          (m) => m.id === currentModelId,
-        );
+        const selectedModel = AVAILABLE_MODELS.find((m) => m.id === currentModelId);
         if (!selectedModel) {
           throw new Error('Selected model not found.');
         }
-        chatProviderRef.current = createChatProvider(
-          selectedModel.id,
-          selectedModel.provider,
-        );
+        chatProviderRef.current = createChatProvider(selectedModel.id, selectedModel.provider);
       }
 
-      const stream =
-        await chatProviderRef.current.sendMessageStream(messageText);
+      const stream = await chatProviderRef.current.sendMessageStream(messageText);
 
       let aiResponseText = '';
       const aiMessageId = `ai-${Date.now()}`;
 
       // Add a placeholder for the AI message
-      setMessages((prev) => [
-        ...prev,
-        { id: aiMessageId, text: '', sender: 'ai' },
-      ]);
+      setMessages((prev) => [...prev, { id: aiMessageId, text: '', sender: 'ai' }]);
 
       for await (const textChunk of stream) {
         aiResponseText += textChunk;
         setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === aiMessageId ? { ...msg, text: aiResponseText } : msg,
-          ),
+          prev.map((msg) => (msg.id === aiMessageId ? { ...msg, text: aiResponseText } : msg)),
         );
       }
 
@@ -110,8 +96,7 @@ const App: React.FC = () => {
         );
       }
     } catch (e) {
-      const errorMessage =
-        e instanceof Error ? e.message : 'An unknown error occurred.';
+      const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
       console.error(e);
       setError(`Error: ${errorMessage}`);
       setMessages((prev) => [
@@ -135,10 +120,7 @@ const App: React.FC = () => {
         onModelChange={handleModelChange}
         onOpenSettings={() => setIsModalOpen(true)}
       />
-      <main
-        ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-6 space-y-6"
-      >
+      <main ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.map((msg) => (
           <ChatMessage key={msg.id} message={msg} />
         ))}

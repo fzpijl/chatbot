@@ -33,14 +33,9 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose }) => {
         </p>
         <div className="space-y-6">
           <div className="p-4 border border-gray-700 rounded-lg">
-            <h3 className="text-lg font-semibold text-indigo-400 mb-3">
-              OpenAI
-            </h3>
+            <h3 className="text-lg font-semibold text-indigo-400 mb-3">OpenAI</h3>
             <div>
-              <label
-                htmlFor="openai-key"
-                className="block text-sm font-medium text-gray-300 mb-1"
-              >
+              <label htmlFor="openai-key" className="block text-sm font-medium text-gray-300 mb-1">
                 API Key
               </label>
               <input
@@ -55,9 +50,7 @@ const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
           <div className="p-4 border border-gray-700 rounded-lg">
-            <h3 className="text-lg font-semibold text-teal-400 mb-3">
-              DeepSeek
-            </h3>
+            <h3 className="text-lg font-semibold text-teal-400 mb-3">DeepSeek</h3>
             <div>
               <label
                 htmlFor="deepseek-key"

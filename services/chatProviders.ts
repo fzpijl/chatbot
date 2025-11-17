@@ -35,9 +35,7 @@ class GeminiChatProvider implements ChatProvider {
     });
   }
 
-  async *sendMessageStream(
-    message: string,
-  ): AsyncGenerator<string, void, unknown> {
+  async *sendMessageStream(message: string): AsyncGenerator<string, void, unknown> {
     const stream = await this.chat.sendMessageStream({ message });
     for await (const chunk of stream) {
       // Ensure we only yield non-empty text parts
@@ -74,9 +72,7 @@ abstract class FetchStreamChatProvider implements ChatProvider {
     return this.baseUrl + this.apiPath;
   }
 
-  async *sendMessageStream(
-    message: string,
-  ): AsyncGenerator<string, void, unknown> {
+  async *sendMessageStream(message: string): AsyncGenerator<string, void, unknown> {
     this.history.push({ role: 'user', content: message });
 
     const response = await fetch(this.getEndpoint(), {
