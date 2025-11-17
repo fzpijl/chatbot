@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Chat } from '@google/genai';
 import type { Message } from '@/types';
 
@@ -11,18 +12,20 @@ export interface ChatProvider {
 }
 
 // Common system prompt for consistency
-const SYSTEM_PROMPT = 'You are a helpful and creative AI assistant. Provide clear, concise, and friendly responses. Use Markdown for formatting, such as lists, bold text, and code blocks, to enhance readability.';
-
+const SYSTEM_PROMPT =
+  'You are a helpful and creative AI assistant. Provide clear, concise, and friendly responses. Use Markdown for formatting, such as lists, bold text, and code blocks, to enhance readability.';
 
 /**
  * An implementation of the ChatProvider for Google's Gemini models using the official SDK.
  */
 class GeminiChatProvider implements ChatProvider {
   private chat: Chat;
-  
+
   constructor(model: string) {
     if (!process.env.API_KEY) {
-      throw new Error("Google API key is not configured. This is a platform issue and cannot be set by the user.");
+      throw new Error(
+        'Google API key is not configured. This is a platform issue and cannot be set by the user.',
+      );
     }
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     this.chat = ai.chats.create({
@@ -32,8 +35,10 @@ class GeminiChatProvider implements ChatProvider {
       },
     });
   }
-  
-  async *sendMessageStream(message: string): AsyncGenerator<string, void, unknown> {
+
+  async *sendMessageStream(
+    message: string,
+  ): AsyncGenerator<string, void, unknown> {
     const stream = await this.chat.sendMessageStream({ message });
     for await (const chunk of stream) {
       // Ensure we only yield non-empty text parts
@@ -44,7 +49,6 @@ class GeminiChatProvider implements ChatProvider {
     }
   }
 }
-
 
 type ChatHistoryMessage = {
   role: 'user' | 'assistant' | 'system';
@@ -60,25 +64,27 @@ abstract class FetchStreamChatProvider implements ChatProvider {
   protected abstract readonly apiPath: string;
   protected readonly model: string;
   private readonly apiKey: string;
-  
+
   constructor(model: string, apiKey: string) {
     this.model = model;
     this.apiKey = apiKey;
     this.history = [{ role: 'system', content: SYSTEM_PROMPT }];
   }
-  
+
   protected getEndpoint(): string {
     return this.baseUrl + this.apiPath;
   }
 
-  async *sendMessageStream(message: string): AsyncGenerator<string, void, unknown> {
+  async *sendMessageStream(
+    message: string,
+  ): AsyncGenerator<string, void, unknown> {
     this.history.push({ role: 'user', content: message });
 
     const response = await fetch(this.getEndpoint(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify({
         model: this.model,
@@ -89,7 +95,11 @@ abstract class FetchStreamChatProvider implements ChatProvider {
 
     if (!response.ok) {
       const errorBody = await response.json();
-      throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorBody?.error?.message || 'Unknown error'}`);
+      throw new Error(
+        `API Error: ${response.status} ${response.statusText} - ${
+          errorBody?.error?.message || 'Unknown error'
+        }`,
+      );
     }
 
     const reader = response.body!.getReader();
@@ -99,7 +109,7 @@ abstract class FetchStreamChatProvider implements ChatProvider {
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
-      
+
       const chunk = decoder.decode(value);
       const lines = chunk.split('\n');
 
@@ -122,9 +132,9 @@ abstract class FetchStreamChatProvider implements ChatProvider {
         }
       }
     }
-    
+
     if (fullResponse) {
-        this.history.push({ role: 'assistant', content: fullResponse });
+      this.history.push({ role: 'assistant', content: fullResponse });
     }
   }
 }
@@ -144,13 +154,12 @@ class OpenAIChatProvider extends FetchStreamChatProvider {
  * Chat provider for DeepSeek models.
  */
 class DeepSeekChatProvider extends FetchStreamChatProvider {
-    protected readonly baseUrl = 'https://api.deepseek.com';
-    protected readonly apiPath = '/chat/completions';
-    constructor(model: string, apiKey: string) {
-      super(model, apiKey);
-    }
+  protected readonly baseUrl = 'https://api.deepseek.com';
+  protected readonly apiPath = '/chat/completions';
+  constructor(model: string, apiKey: string) {
+    super(model, apiKey);
+  }
 }
-
 
 /**
  * A mock implementation of the ChatProvider.
@@ -158,14 +167,14 @@ class DeepSeekChatProvider extends FetchStreamChatProvider {
  */
 class EchoBotProvider implements ChatProvider {
   async *sendMessageStream(message: string): AsyncGenerator<string> {
-    const responsePrefix = "Echo: ";
+    const responsePrefix = 'Echo: ';
     yield responsePrefix;
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const words = message.split(' ');
     for (const word of words) {
       yield `${word} `;
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 150));
     }
   }
 }
@@ -176,23 +185,30 @@ class EchoBotProvider implements ChatProvider {
  * @param provider The name of the provider (e.g., 'google', 'echobot').
  * @returns An instance of a class that implements the ChatProvider interface.
  */
-export function createChatProvider(modelId: string, provider: 'google' | 'openai' | 'deepseek' | 'echobot' | string): ChatProvider {
+export function createChatProvider(
+  modelId: string,
+  provider: 'google' | 'openai' | 'deepseek' | 'echobot' | string,
+): ChatProvider {
   switch (provider) {
     case 'google':
       return new GeminiChatProvider(modelId);
     case 'openai': {
-        const apiKey = localStorage.getItem('openai_api_key');
-        if (!apiKey) {
-            throw new Error('OpenAI API key not found. Please set it in the settings menu (gear icon).');
-        }
-        return new OpenAIChatProvider(modelId, apiKey);
+      const apiKey = localStorage.getItem('openai_api_key');
+      if (!apiKey) {
+        throw new Error(
+          'OpenAI API key not found. Please set it in the settings menu (gear icon).',
+        );
+      }
+      return new OpenAIChatProvider(modelId, apiKey);
     }
     case 'deepseek': {
-        const apiKey = localStorage.getItem('deepseek_api_key');
-        if (!apiKey) {
-            throw new Error('DeepSeek API key not found. Please set it in the settings menu (gear icon).');
-        }
-        return new DeepSeekChatProvider(modelId, apiKey);
+      const apiKey = localStorage.getItem('deepseek_api_key');
+      if (!apiKey) {
+        throw new Error(
+          'DeepSeek API key not found. Please set it in the settings menu (gear icon).',
+        );
+      }
+      return new DeepSeekChatProvider(modelId, apiKey);
     }
     case 'echobot':
       return new EchoBotProvider();
